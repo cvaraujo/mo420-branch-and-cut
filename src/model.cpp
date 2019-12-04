@@ -26,12 +26,12 @@ void Model::initialize() {
 
 
         for (auto i : graph->vertices) {
-            sprintf(name, "y%d", i);
+            sprintf(name, "y_%d", i);
             y[i] = IloNumVar(env, 0, 1, name);
             model.add(y[i]);
             model.add(IloConversion(env, y[i], ILOBOOL));
             for (auto j : graph->incidenceMatrix[i]) {
-                sprintf(name, "x%d%d", i, j);
+                sprintf(name, "x_%d_%d", i, j);
                 x[i][j] = IloNumVar(env, 0, 1, name);
                 model.add(x[i][j]);
                 model.add(IloConversion(env, x[i][j], ILOBOOL));

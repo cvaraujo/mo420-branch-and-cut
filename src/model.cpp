@@ -75,10 +75,10 @@ void Model::edgesLimitConstraint() {
     model.add(constraint == (graph->n - 1));
 
     // Edges in a extreme vertex with degree one have to be one
-//    for (int i = 0; i < graph->n; i++)
-//        for (auto j : graph->incidenceMatrix[i])
-//            if (int(graph->incidenceMatrix[j].size()) == 1)
-//                model.add(x[i][j] == 1);
+    for (int i = 0; i < graph->n; i++)
+        for (auto j : graph->incidenceMatrix[i])
+            if (int(graph->incidenceMatrix[j].size()) == 1)
+                model.add(x[i][j] == 1);
 
 }
 
@@ -90,7 +90,6 @@ void Model::setBranchConstraint() {
         }
         model.add((constraint - 2) <= (int(graph->incidenceMatrix[i].size()) - 2) * y[i]);
     }
-/**
     // Each vertex with degree less or equal to 2 cannot be a branche
     for (int i = 0; i < graph->n; i++)
         if (int(graph->incidenceMatrix[i].size()) <= 2) model.add(y[i] == 0);
@@ -102,7 +101,7 @@ void Model::setBranchConstraint() {
     // Cocycle restriction
     for (auto p : graph->cocycle)
         model.add(x[p.first.u][p.first.v] + x[p.second.u][p.second.v] >= 1);
-**/
+
 }
 
 ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
@@ -123,7 +122,7 @@ ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
         for (Edge e : this->graph.edges) {
             if (val_x[e.u][e.v] > EPS || val_x[e.v][e.u] > EPS) {
                 g->incidenceMatrix[e.u].push_back(e.v),
-                        g->incidenceMatrix[e.v].push_back(e.u);
+                g->incidenceMatrix[e.v].push_back(e.u);
                 g->edges.push_back(e);
             }
         }
@@ -170,11 +169,11 @@ ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
                         cut += (0.5 * x[u][v]);
                     }
                 }
-                cout << cut << " <= " << int(comps[i].size()) - 1 << endl;
+//                cout << cut << " <= " << int(comps[i].size()) - 1 << endl;
                 add(cut <= (int(comps[i].size()) - 1));
             }
 
-        cout << "Fim" <<  endl;
+//        cout << "Fim" <<  endl;
         }
     } catch (IloException &ex){
         cout << ex.getMessage() << endl;
@@ -189,7 +188,6 @@ void Model::solve() {
     cplex.setParam(IloCplex::Param::Threads, 1);
 
     cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
-
     this->cplex.use(Cortes(env, x, *graph));
     this->cplex.exportModel("model.lp");
     this->cplex.solve();
@@ -211,8 +209,8 @@ void Model::showSolution() {
 
         cout << "Branch vertex" << endl;
         for (int i = 0; i < graph->n; i++)
-//            if (c >= 0.5)
-            cout << "[" << i + 1 << ", " << cplex.getValue(y[i]) << "]" << endl;
+            if (cplex.getValue(y[i]) >= 0.5)
+                cout << "[" << i + 1 << ", " << cplex.getValue(y[i]) << "]" << endl;
 
     } catch (IloException &ex) {
         cout << ex.getMessage() << endl;

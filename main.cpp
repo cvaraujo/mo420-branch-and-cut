@@ -537,8 +537,8 @@
 int main(int argc, char *argv[]) {
     Graph *graph = new Graph();
     graph->load_graph("toy.txt");
-//    graph->twoCocycle();
-    graph->print_graph();
+    graph->twoCocycle();
+//    graph->print_graph();
     Model *model = new Model(graph);
     model->initModel();
     model->solve();

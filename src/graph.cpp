@@ -24,7 +24,7 @@ void Graph::load_graph(string path) {
         file >> e.u >> e.v;
         e.u--, e.v--;
         incidenceMatrix[e.u].push_back(e.v),
-        incidenceMatrix[e.v].push_back(e.u);
+                incidenceMatrix[e.v].push_back(e.u);
         if (incidenceMatrix[e.u].size() == 3) vertices.push_back(e.u);
         if (incidenceMatrix[e.v].size() == 3) vertices.push_back(e.v);
         edges.push_back(e);
@@ -35,7 +35,7 @@ void Graph::load_graph(string path) {
 
 void Graph::print_graph() {
     for (auto e : edges) {
-        cout << e.u+1 << " - " << e.v+1 << endl;
+        cout << e.u + 1 << " - " << e.v + 1 << endl;
     }
 }
 
@@ -81,13 +81,12 @@ void Graph::bridgeUtil(int u, bool visited[], int disc[], int low[], int parent[
 
                 if (low[v] > disc[u]) {
                     Edge e;
-//                    isBridge[u][v] = isBridge[v][u] = true;
-                    e.u = u, e.v = v;
+                    e.u = min(u, v), e.v = max(u, v);
                     bridges.push_back(e);
-//                 cout << u << " " << v << endl;
                 }
 
-            } // Update low value of u for parent function calls.
+            }
+            // Update low value of u for parent function calls.
             else if (v != parent[u])
                 low[u] = min(low[u], disc[v]);
         }
@@ -102,10 +101,12 @@ void Graph::twoCocycle() {
 
     for (int u = 0; u < n; u++) {
         for (auto v : incidenceMatrix[u]) {
-            edge.u = u, edge.v = v;
-            if (!isBridge[u][v]) {
-                bridges = vector<Edge>();
-                bridge(edge);
+            if (u < v) {
+                edge.u = u, edge.v = v;
+                if (!isBridge[u][v]) {
+                    bridges = vector<Edge>();
+                    bridge(edge);
+                }
             }
         }
     }

@@ -86,7 +86,7 @@ void Model::setBranchConstraint() {
     for (int i = 0; i < graph->n; i++) {
         IloExpr constraint(env);
         for (auto j : graph->incidenceMatrix[i]) {
-            constraint += x[min(i,j)][max(i,j)];
+            constraint += x[min(i, j)][max(i, j)];
         }
         model.add((constraint - 2) <= (int(graph->incidenceMatrix[i].size()) - 2) * y[i]);
     }
@@ -110,29 +110,31 @@ void Model::solve() {
     this->cplex.solve();
 }
 
-bool Model::isVarInteger(IloNum x){
+bool isVarInteger(IloNum x) {
     return x <= EPS || x >= 1 - EPS;
 }
 
-Model::ILOUSERCUTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y){
+ILOUSERCUTCALLBACK3(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, graph) {
     IloEnv env = getEnv();
 
-    IloArray<IloNumVarArray> val_x(env);
-    IloNumVarArray val_y(env);
-    
-    getValues(val_x, x);
-    getValues(val_y, x);
+    IloArray <IloNumArray> val_x(env, graph.n);
+    IloNumArray val_y(env);
+
+    for (int i = 0; i <graph.n; i++)
+        getValues(val_x[i], x[i]);
+
+    getValues(val_y, y);
 
 
     bool isInteger = true;
-    for (int i = 0; i < this->graph->n; i++){
-        if (!isVarInteger(val_y[i])){
+    for (int i = 0; i < graph.n; i++) {
+        if (!isVarInteger(val_y[i])) {
             isInteger = false;
             break;
         }
 
-        for (int j : this->graph->incidenceMatrix[i]){
-            if (!isVarInteger(val_x[i][j]) || !isVarInteger(val_x[j][i])){
+        for (int j : this->graph.incidenceMatrix[i]) {
+            if (!isVarInteger(val_x[i][j]) || !isVarInteger(val_x[j][i])) {
                 isInteger = false;
                 break;
             }
@@ -141,25 +143,25 @@ Model::ILOUSERCUTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, 
         if (!isInteger) break;
     }
 
-    if (isInteger){
+    if (isInteger) {
         Graph *g = new Graph();
-        g->n = this->graph->n;
+        g->n = this->graph.n;
         g->incidenceMatrix.resize(g->n);
-        for (Edge e : this->graph->edges){
-            if (val_x[e.u][e.v] > EPS || val_x[e.v][e.u] > EPS){
+        for (Edge e : this->graph.edges) {
+            if (val_x[e.u][e.v] > EPS || val_x[e.v][e.u] > EPS) {
                 g->incidenceMatrix[e.u].push_back(e.v),
-                g->incidenceMatrix[e.v].push_back(e.u);
+                        g->incidenceMatrix[e.v].push_back(e.u);
                 g->edges.push_back(e);
             }
         }
 
-        vector<vector<int> > comps;
+        vector <vector<int>> comps;
         vector<int> nEdgesComponent;
 
         vector<int> color;
         color.resize(g->n, 0);
 
-        for (int i = 0; i < g->n; i++){
+        for (int i = 0; i < g->n; i++) {
             if (color[i] != 0) continue;
 
             comps.push_back(vector<int>());
@@ -170,11 +172,11 @@ Model::ILOUSERCUTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, 
             comps.back().push_back(i);
             q.push(i);
 
-            while (!q.empty()){
+            while (!q.empty()) {
                 int u = q.front();
                 q.pop();
-                for (int v : g->incidenceMatrix[u]){
-                    if (color[v] == 0){
+                for (int v : g->incidenceMatrix[u]) {
+                    if (color[v] == 0) {
                         color[v] = 1;
                         q.push(v);
                         comps.back().push_back(v);
@@ -187,16 +189,16 @@ Model::ILOUSERCUTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, 
             nEdgesComponent.back() = nEdgesComponent.back() >> 1;
         }
 
-        for (int i = 0; i < comps.size(); i++){
-            if (nEdgesComponent[i] >= comps[i].size()){
+        for (int i = 0; i < comps.size(); i++) {
+            if (nEdgesComponent[i] >= comps[i].size()) {
                 IloExpr cut(env);
-                for (int u : comps[i]){
-                    for (int v : g->incidenceMatrix[u]){
+                for (int u : comps[i]) {
+                    for (int v : g->incidenceMatrix[u]) {
                         cut += 0.5 * x[u][v];
                     }
                 }
 
-                add(cut <= comps[i].size() - 1);
+                add(cut <= int(comps[i].size()) - 1);
             }
         }
     }

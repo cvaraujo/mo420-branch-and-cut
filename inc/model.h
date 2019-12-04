@@ -39,7 +39,7 @@ public:
 
     bool isVarInteger(IloNum x);
 
-    ILOUSERCUTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y);
+//    ILOUSERCUTCALLBACK(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y);
 };
 
 #endif //MO420_BRANCH_AND_CUT_MODEL_H

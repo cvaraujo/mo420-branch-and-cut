@@ -34,9 +34,11 @@ public:
     vector<Edge> edges;
     vector<int> vertices;
     vector<vector<int>> incidenceMatrix;
+    vector<pair<Edge, Edge>> cocycle;
     vector<Edge> bridges;
     vector<vector<bool>> isBridge;
-    vector<bool> fixed;
+    vector<vector<bool>> isBridgeAndCocycle;
+    vector<bool> branches;
 
     Graph() {
     }
@@ -47,9 +49,15 @@ public:
 
     void set_edge_value(int u, int v, double weight);
 
-    void bridgeUtil(int u, bool visited[], int disc[], int low[], int parent[]);
+    void bridgeUtil(int u, bool visited[], int disc[], int low[], int parent[], bool ap[], Edge removed);
 
-    void bridge();
+    void bridge(Edge removed);
+
+    void twoCocycle();
+
+    int connectedComponents(int removed);
+
+    void DFSUtil(int v, int removed, bool visited[]);
 };
 
 #endif //MO420_BRANCH_AND_CUT_GRAPH_H

@@ -11,4 +11,5 @@ link_directories("/opt/ibm/ILOG/CPLEX_Studio129/concert/lib/x86-64_linux/static_
 
 add_executable(MO420_Branch_and_Cut main.cpp src/graph.cpp inc/graph.h inc/include.h src/model.cpp inc/model.h)
 
-target_link_libraries(MO420_Branch_and_Cut concert ilocplex cplex m pthread)
+target_link_libraries(MO420_Branch_and_Cut concert ilocplex cplex pthread dl)
+#lconcert -lilocplex -lcplex -lpthread -ldl

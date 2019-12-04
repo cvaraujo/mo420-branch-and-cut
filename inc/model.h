@@ -50,7 +50,8 @@ public:
 
     void showSolution();
 
-    bool isVarInteger(IloNum x);
+    void showSolutionHybrid();
+
 
 //    ILOUSERCUTCALLBACK(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y);
 };

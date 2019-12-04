@@ -540,8 +540,8 @@ int main(int argc, char *argv[]) {
     graph->twoCocycle();
 //    graph->print_graph();
     Model *model = new Model(graph);
-    model->initModel();
+    model->initModelHybrid();
     model->solve();
-    model->showSolution();
+    model->showSolutionHybrid();
     return 0;
 }

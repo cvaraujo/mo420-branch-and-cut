@@ -8,7 +8,9 @@ Model::Model(Graph *graph) {
     if (graph != nullptr) {
         this->graph = graph;
 
-        initialize();
+//        initialize();
+        initializeHybrid();
+
     }
 }
 
@@ -226,15 +228,15 @@ ILOUSERCUTCALLBACK3(SubConjRam, IloArray<IloNumVarArray>, x, IloNumVarArray, y, 
 
 void Model::solve() {
     /* Turn on traditional search for use with control callbacks */
-    cplex.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);
+//    cplex.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);
 
     /* Desabilita paralelismo  */
-    cplex.setParam(IloCplex::Param::Threads, 1);
+//    cplex.setParam(IloCplex::Param::Threads, 1);
 
-    cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
-    this->cplex.use(SEC(env, x, *graph));
-    this->cplex.use(SubConjRam(env, x, y, *graph));
-    this->cplex.exportModel("model.lp");
+//    cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
+//    this->cplex.use(SEC(env, x, *graph));
+//    this->cplex.use(SubConjRam(env, x, y, *graph));
+    this->cplex.exportModel("model_Hybrid.lp");
     this->cplex.solve();
 }
 
@@ -264,6 +266,30 @@ void Model::showSolution() {
 
 /*-------------------------------------------------------*/
 
+void Model::showSolutionHybrid() {
+    try {
+        cout << "Objective" << endl;
+        cout << cplex.getObjValue() << endl;
+
+        cout << "Selected edges" << endl;
+        for (int i = 0; i < graph->n; i++) {
+            for (auto j : graph->incidenceMatrix[i]) {
+                if (cplex.getValue(z[i][j]) > 0.5) {
+                    cout << "[" << i + 1 << ", " << j + 1 << "]" << endl;
+                }
+            }
+        }
+
+        cout << "Branch vertex" << endl;
+        for (int i = 0; i < graph->n; i++)
+            if (cplex.getValue(y[i]) >= 0.5)
+                cout << "[" << i + 1 << ", " << cplex.getValue(y[i]) << "]" << endl;
+
+    } catch (IloException &ex) {
+        cout << ex.getMessage() << endl;
+    }
+}
+
 void Model::initializeHybrid() {
     try {
         char name[20];
@@ -274,19 +300,19 @@ void Model::initializeHybrid() {
         this->y = IloNumVarArray(env, graph->n);
 
         for (int i = 0; i < graph->n; i++)
-            this->x[i] = IloNumVarArray(env, graph->n);
+            this->z[i] = IloNumVarArray(env, graph->n);
 
 
         for (int i = 0; i < graph->n; i++) {
-            sprintf(name, "y%d", i);
+            sprintf(name, "y_%d", i);
             y[i] = IloNumVar(env, 0, 1, name);
             model.add(y[i]);
             model.add(IloConversion(env, y[i], ILOBOOL));
             for (auto j : graph->incidenceMatrix[i]) {
-                sprintf(name, "z%d%d", i, j);
-                z[i][j] = IloNumVar(env, 0, 1, name);
-                model.add(z[i][j]);
-                model.add(IloConversion(env, x[i][j], ILOBOOL));
+                    sprintf(name, "z_%d_%d", i, j);
+                    z[i][j] = IloNumVar(env, 0, 1, name);
+                    model.add(z[i][j]);
+                    model.add(IloConversion(env, z[i][j], ILOBOOL));
             }
         }
     } catch (IloException &ex) {
@@ -320,22 +346,33 @@ void Model::edgesLimitConstraintHybrid() {
             constraint += z[i][j];
 
     model.add(constraint == (graph->n - 1));
-
+/*
     // Edges in a extreme vertex with degree one have to be one
     for (int i = 0; i < graph->n; i++)
         for (auto j : graph->incidenceMatrix[i])
             if (int(graph->incidenceMatrix[j].size()) == 1)
-                model.add(z[i][j] == 1);
+                model.add(z[i][j] + z[j][i] == 1);
+
+    // Each vertex with degree less or equal to 2 cannot be a branche
+    for (int i = 0; i < graph->n; i++)
+        if (int(graph->incidenceMatrix[i].size()) <= 2) model.add(y[i] == 0);
+
+    // Vertex with two or more bridges adjacent should be a branche and cut vertex with result in 3 or more CC
+    for (int i = 0; i < graph->n; i++)
+        if (graph->branches[i]) model.add(y[i] == 1);
+
+    // Cocycle restriction
+    for (auto p : graph->cocycle)
+        model.add(x[p.first.u][p.first.v] + x[p.second.u][p.second.v] >= 1);
+*/
 }
 
-void Model::outDegreeHybrid(int root){
+void Model::outDegreeHybrid(int root) {
     for (int v = 0; v < graph->n; v++) {
         if (v != root) {
             IloExpr constraint(env);
-            for (int i = 0; i < graph->n; i++){
-                for (auto j : graph->incidenceMatrix[i]) {
-                    if (j == v) constraint += z[i][v];
-                }
+            for (auto j : graph->incidenceMatrix[v]) {
+                constraint += z[j][v];
             }
             model.add(constraint == 1);
         }
@@ -348,13 +385,11 @@ void Model::branchesHybrid(int root){
             IloExpr constraint(env);
             for (auto u : graph->incidenceMatrix[v])
                 constraint += z[v][u];
-
             model.add(constraint - 1 <= (int(graph->incidenceMatrix[v].size()) - 2)*y[v]);
         } else {
             IloExpr constraint(env);
             for (auto u : graph->incidenceMatrix[root])
                 constraint += z[root][u];
-
             model.add(constraint - 2 <= (int(graph->incidenceMatrix[root].size()) - 2)*y[v]);
         }
     }

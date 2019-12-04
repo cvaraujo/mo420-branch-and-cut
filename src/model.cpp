@@ -105,7 +105,7 @@ void Model::setBranchConstraint() {
 **/
 }
 
-ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
+ILOLAZYCONSTRAINTCALLBACK2(SEC, IloArray<IloNumVarArray>, x, Graph, graph) {
     try {
         IloEnv env = getEnv();
 
@@ -113,18 +113,18 @@ ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
 
         for (int i = 0; i <graph.n; i++){
             for (auto j : graph.incidenceMatrix[i]){
-                val_x[i][j] = getValue(x[i][j]);
+                val_x[i][j] = val_x[j][i] = getValue(x[i][j]);
             }
         }
 
-        Graph *g = new Graph();
-        g->n = graph.n;
-        g->incidenceMatrix.resize(g->n);
-        for (Edge e : this->graph.edges) {
+        Graph g;
+        g.n = graph.n;
+        g.incidenceMatrix.resize(g.n);
+        for (Edge e : graph.edges) {
             if (val_x[e.u][e.v] > EPS || val_x[e.v][e.u] > EPS) {
-                g->incidenceMatrix[e.u].push_back(e.v),
-                        g->incidenceMatrix[e.v].push_back(e.u);
-                g->edges.push_back(e);
+                g.incidenceMatrix[e.u].push_back(e.v);
+                g.incidenceMatrix[e.v].push_back(e.u);
+                g.edges.push_back(e);
             }
         }
 
@@ -132,9 +132,9 @@ ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
         vector<int> nEdgesComponent;
 
         vector<int> color;
-        color.resize(g->n, 0);
+        color.resize(g.n, 0);
 
-        for (int i = 0; i < g->n; i++) {
+        for (int i = 0; i < g.n; i++) {
             if (color[i] != 0) continue;
 
             comps.push_back(vector<int>());
@@ -148,7 +148,7 @@ ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
             while (!q.empty()) {
                 int u = q.front();
                 q.pop();
-                for (int v : g->incidenceMatrix[u]) {
+                for (int v : g.incidenceMatrix[u]) {
                     if (color[v] == 0) {
                         color[v] = 1;
                         q.push(v);
@@ -166,17 +166,60 @@ ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
             if (nEdgesComponent[i] >= comps[i].size()) {
                 IloExpr cut(env);
                 for (int u : comps[i]) {
-                    for (int v : g->incidenceMatrix[u]) {
+                    for (int v : g.incidenceMatrix[u]) {
                         cut += (0.5 * x[u][v]);
                     }
                 }
-                cout << cut << " <= " << int(comps[i].size()) - 1 << endl;
                 add(cut <= (int(comps[i].size()) - 1));
             }
-
-        cout << "Fim" <<  endl;
         }
-    } catch (IloException &ex){
+    }
+    catch (IloException &ex){
+        cout << ex.getMessage() << endl;
+    }
+}
+
+ILOUSERCUTCALLBACK3(SubConjRam, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, graph){
+    try {
+        IloEnv env = getEnv();
+
+		vector <vector<IloNum >> val_x = vector<vector<IloNum>>(graph.n, vector<IloNum>(graph.n));
+
+	    for (int i = 0; i <graph.n; i++){
+	        for (auto j : graph.incidenceMatrix[i]){
+	            val_x[i][j] = val_x[j][i] = getValue(x[i][j]);
+	        }
+	    }
+
+	    IloNumArray val_y(env);
+	    getValues(val_y, y);
+
+	    for (int i = 0; i < graph.n; i++){
+	    	if (graph.incidenceMatrix[i].size() < 3) continue;
+	    	vector<pair<float, int> > xe;
+	    	for (int j : graph.incidenceMatrix[i]){
+	    		xe.push_back(make_pair(val_x[i][j], j));
+	    	}
+	    	sort(xe.rbegin(), xe.rend());
+
+	    	for (int k = 3; k < (int)graph.incidenceMatrix[i].size(); k++){
+	    		float lhs = 2 - k;
+	    		for (int j = 0; j < k; j++){
+	    			lhs += xe[j].first;
+	    		}
+
+	    		if (lhs > 2 - EPS){
+	                IloExpr cut(env);
+	                cut += 2 - k;
+		    		for (int j = 0; j < k; j++){
+		    			cut += x[i][xe[j].second];
+		    		}
+		    		add(cut <= 2);
+	    		}
+	    	}
+	    }
+    }
+    catch (IloException &ex){
         cout << ex.getMessage() << endl;
     }
 }
@@ -190,7 +233,8 @@ void Model::solve() {
 
     cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
 
-    this->cplex.use(Cortes(env, x, *graph));
+    this->cplex.use(SEC(env, x, *graph));
+    this->cplex.use(SubConjRam(env, x, y, *graph));
     this->cplex.exportModel("model.lp");
     this->cplex.solve();
 }

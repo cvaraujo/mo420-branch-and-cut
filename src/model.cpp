@@ -26,13 +26,13 @@ void Model::initialize() {
 
 
         for (int i = 0; i < graph->n; i++) {
-            sprintf(name, "y%d", i);
+            sprintf(name, "y_%d", i);
             y[i] = IloNumVar(env, 0, 1, name);
             model.add(y[i]);
             model.add(IloConversion(env, y[i], ILOBOOL));
             for (auto j : graph->incidenceMatrix[i]) {
                 if (i < j) {
-                    sprintf(name, "x%d%d", i, j);
+                    sprintf(name, "x_%d_%d", i, j);
                     x[i][j] = IloNumVar(env, 0, 1, name);
                     model.add(x[i][j]);
                     model.add(IloConversion(env, x[i][j], ILOBOOL));
@@ -108,6 +108,98 @@ void Model::setBranchConstraint() {
 void Model::solve() {
     this->cplex.exportModel("model.lp");
     this->cplex.solve();
+}
+
+bool Model::isVarInteger(IloNum x){
+    return x <= EPS || x >= 1 - EPS;
+}
+
+Model::ILOUSERCUTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y){
+    IloEnv env = getEnv();
+
+    IloArray<IloNumVarArray> val_x(env);
+    IloNumVarArray val_y(env);
+    
+    getValues(val_x, x);
+    getValues(val_y, x);
+
+
+    bool isInteger = true;
+    for (int i = 0; i < this->graph->n; i++){
+        if (!isVarInteger(val_y[i])){
+            isInteger = false;
+            break;
+        }
+
+        for (int j : this->graph->incidenceMatrix[i]){
+            if (!isVarInteger(val_x[i][j]) || !isVarInteger(val_x[j][i])){
+                isInteger = false;
+                break;
+            }
+        }
+
+        if (!isInteger) break;
+    }
+
+    if (isInteger){
+        Graph *g = new Graph();
+        g->n = this->graph->n;
+        g->incidenceMatrix.resize(g->n);
+        for (Edge e : this->graph->edges){
+            if (val_x[e.u][e.v] > EPS || val_x[e.v][e.u] > EPS){
+                g->incidenceMatrix[e.u].push_back(e.v),
+                g->incidenceMatrix[e.v].push_back(e.u);
+                g->edges.push_back(e);
+            }
+        }
+
+        vector<vector<int> > comps;
+        vector<int> nEdgesComponent;
+
+        vector<int> color;
+        color.resize(g->n, 0);
+
+        for (int i = 0; i < g->n; i++){
+            if (color[i] != 0) continue;
+
+            comps.push_back(vector<int>());
+            nEdgesComponent.push_back(0);
+
+            color[i] = 1;
+            queue<int> q;
+            comps.back().push_back(i);
+            q.push(i);
+
+            while (!q.empty()){
+                int u = q.front();
+                q.pop();
+                for (int v : g->incidenceMatrix[u]){
+                    if (color[v] == 0){
+                        color[v] = 1;
+                        q.push(v);
+                        comps.back().push_back(v);
+                    }
+                    nEdgesComponent.back()++;
+                }
+            }
+
+            /*Dividimos por 2, porque cada aresta foi contada 2 vezes*/
+            nEdgesComponent.back() = nEdgesComponent.back() >> 1;
+        }
+
+        for (int i = 0; i < comps.size(); i++){
+            if (nEdgesComponent[i] >= comps[i].size()){
+                IloExpr cut(env);
+                for (int u : comps[i]){
+                    for (int v : g->incidenceMatrix[u]){
+                        cut += 0.5 * x[u][v];
+                    }
+                }
+
+                add(cut <= comps[i].size() - 1);
+            }
+        }
+    }
 }
 
 void Model::showSolution() {

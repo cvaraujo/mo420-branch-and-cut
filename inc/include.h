@@ -20,6 +20,8 @@
 #include <ilcplex/ilocplex.h>
 
 #define NIL -1
+#define EPS 1e-6
+#define INF 1e6
 
 using namespace std;
 

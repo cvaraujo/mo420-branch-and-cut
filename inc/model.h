@@ -16,6 +16,10 @@ class Model {
     IloArray<IloNumVarArray> x;
     IloNumVarArray y;
 
+    int ncuts;
+    float objval_relax1;
+    float objval_node1;
+
     void objectiveFunction();
 
     void edgesLimitConstraint();
@@ -31,7 +35,9 @@ public:
 
     void solve();
 
-};
+    bool isVarInteger(IloNum x);
 
+    ILOUSERCUTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y);
+};
 
 #endif //MO420_BRANCH_AND_CUT_MODEL_H

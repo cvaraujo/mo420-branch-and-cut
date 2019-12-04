@@ -24,7 +24,7 @@ void Graph::load_graph(string path) {
         file >> e.u >> e.v;
         e.u--, e.v--;
         incidenceMatrix[e.u].push_back(e.v),
-                incidenceMatrix[e.v].push_back(e.u);
+        incidenceMatrix[e.v].push_back(e.u);
         if (incidenceMatrix[e.u].size() == 3) vertices.push_back(e.u);
         if (incidenceMatrix[e.v].size() == 3) vertices.push_back(e.v);
         edges.push_back(e);
@@ -183,3 +183,4 @@ void Graph::DFSUtil(int v, int removed, _Bool *visited) {
         if (u != removed && !visited[u])
             DFSUtil(u, removed, visited);
 }
+

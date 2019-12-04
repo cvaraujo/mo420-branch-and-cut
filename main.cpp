@@ -212,7 +212,7 @@ struct RegAux {
 };
 
 ILOHEURISTICCALLBACK1(HeuristicaPrimal, IloBoolVarArray, x) {
-    /* recupera solucao da relaxacao */
+    /* recupera soluçãolucao da relaxacao */
     IloNumArray val(getEnv());
     getValues(val, x);
 

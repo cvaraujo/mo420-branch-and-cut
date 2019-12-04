@@ -33,7 +33,7 @@ void Model::initialize() {
             for (auto j : graph->incidenceMatrix[i]) {
                 if (i < j) {
                     sprintf(name, "x_%d_%d", i, j);
-                    x[i][j] = IloNumVar(env, 0, 1, name);
+                    x[i][j] = x[j][i] = IloNumVar(env, 0, 1, name);
                     model.add(x[i][j]);
                     model.add(IloConversion(env, x[i][j], ILOBOOL));
                 }
@@ -105,47 +105,20 @@ void Model::setBranchConstraint() {
 **/
 }
 
-void Model::solve() {
-    this->cplex.exportModel("model.lp");
-    this->cplex.solve();
-}
+ILOLAZYCONSTRAINTCALLBACK2(Cortes, IloArray<IloNumVarArray>, x, Graph , graph) {
+    try {
+        IloEnv env = getEnv();
 
-bool isVarInteger(IloNum x) {
-    return x <= EPS || x >= 1 - EPS;
-}
+        vector <vector<IloNum >> val_x = vector<vector<IloNum>>(graph.n, vector<IloNum>(graph.n));
 
-ILOUSERCUTCALLBACK3(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, graph) {
-    IloEnv env = getEnv();
-
-    IloArray <IloNumArray> val_x(env, graph.n);
-    IloNumArray val_y(env);
-
-    for (int i = 0; i <graph.n; i++)
-        getValues(val_x[i], x[i]);
-
-    getValues(val_y, y);
-
-
-    bool isInteger = true;
-    for (int i = 0; i < graph.n; i++) {
-        if (!isVarInteger(val_y[i])) {
-            isInteger = false;
-            break;
-        }
-
-        for (int j : this->graph.incidenceMatrix[i]) {
-            if (!isVarInteger(val_x[i][j]) || !isVarInteger(val_x[j][i])) {
-                isInteger = false;
-                break;
+        for (int i = 0; i <graph.n; i++){
+            for (auto j : graph.incidenceMatrix[i]){
+                val_x[i][j] = getValue(x[i][j]);
             }
         }
 
-        if (!isInteger) break;
-    }
-
-    if (isInteger) {
         Graph *g = new Graph();
-        g->n = this->graph.n;
+        g->n = graph.n;
         g->incidenceMatrix.resize(g->n);
         for (Edge e : this->graph.edges) {
             if (val_x[e.u][e.v] > EPS || val_x[e.v][e.u] > EPS) {
@@ -194,14 +167,32 @@ ILOUSERCUTCALLBACK3(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Grap
                 IloExpr cut(env);
                 for (int u : comps[i]) {
                     for (int v : g->incidenceMatrix[u]) {
-                        cut += 0.5 * x[u][v];
+                        cut += (0.5 * x[u][v]);
                     }
                 }
-
-                add(cut <= int(comps[i].size()) - 1);
+                cout << cut << " <= " << int(comps[i].size()) - 1 << endl;
+                add(cut <= (int(comps[i].size()) - 1));
             }
+
+        cout << "Fim" <<  endl;
         }
+    } catch (IloException &ex){
+        cout << ex.getMessage() << endl;
     }
+}
+
+void Model::solve() {
+    /* Turn on traditional search for use with control callbacks */
+    cplex.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);
+
+    /* Desabilita paralelismo  */
+    cplex.setParam(IloCplex::Param::Threads, 1);
+
+    cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
+
+    this->cplex.use(Cortes(env, x, *graph));
+    this->cplex.exportModel("model.lp");
+    this->cplex.solve();
 }
 
 void Model::showSolution() {

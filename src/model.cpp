@@ -106,6 +106,17 @@ void Model::setBranchConstraint() {
 
 }
 
+void Model::branchConstraintAdpt() {
+    for (int i = 0; i < graph->n; i++) {
+        IloExpr constraint(env);
+        for (auto j : graph->incidenceMatrix[i]) {
+            if (i < j) constraint += x[i][j];
+        }
+        model.add(2*y[i] <= constraint - 1);
+    }
+}
+
+
 ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Graph, graph) {
     try {
         IloEnv env = getEnv();
@@ -348,11 +359,13 @@ void Model::initializeHybrid() {
         this->cplex = IloCplex(model);
 
         this->z = IloArray<IloNumVarArray>(env, graph->n);
+        this->x = IloArray<IloNumVarArray>(env, graph->n);
         this->y = IloNumVarArray(env, graph->n);
 
-        for (int i = 0; i < graph->n; i++)
+        for (int i = 0; i < graph->n; i++) {
             this->z[i] = IloNumVarArray(env, graph->n);
-
+            this->x[i] = IloNumVarArray(env, graph->n);
+        }
 
         for (int i = 0; i < graph->n; i++) {
             sprintf(name, "y_%d", i);
@@ -360,10 +373,16 @@ void Model::initializeHybrid() {
             model.add(y[i]);
             model.add(IloConversion(env, y[i], ILOBOOL));
             for (auto j : graph->incidenceMatrix[i]) {
-                    sprintf(name, "z_%d_%d", i, j);
-                    z[i][j] = IloNumVar(env, 0, 1, name);
-                    model.add(z[i][j]);
-                    model.add(IloConversion(env, z[i][j], ILOBOOL));
+                if (i < j) {
+                    sprintf(name, "x_%d_%d", i, j);
+                    x[i][j] = IloNumVar(env, 0, 1, name);
+                    model.add(x[i][j]);
+                    model.add(IloConversion(env, x[i][j], ILOBOOL));
+                }
+                sprintf(name, "z_%d_%d", i, j);
+                z[i][j] = IloNumVar(env, 0, 1, name);
+                model.add(z[i][j]);
+                model.add(IloConversion(env, z[i][j], ILOBOOL));
             }
         }
     } catch (IloException &ex) {
@@ -380,42 +399,21 @@ void Model::initModelHybrid() {
 //    cplex.setOut(env.getNullStream());
 
     int root = 0;
-
     objectiveFunction();
-    edgesLimitConstraintHybrid();
+
+    // (3)
+    edgesLimitConstraint();
+    // (4)
+    setBranchConstraint();
+    // (7)
+    branchConstraintAdpt();
+    // (27)-(29)
     outDegreeHybrid(root);
     branchesHybrid(root);
     branchesCorrelationHybrid(root);
+    // (35)
+    xAndZRelation();
     cout << "All done!" << endl;
-}
-
-void Model::edgesLimitConstraintHybrid() {
-    IloExpr constraint(env);
-
-    for (int i = 0; i < graph->n; i++)
-        for (auto j : graph->incidenceMatrix[i])
-            constraint += z[i][j];
-
-    model.add(constraint == (graph->n - 1));
-/*
-    // Edges in a extreme vertex with degree one have to be one
-    for (int i = 0; i < graph->n; i++)
-        for (auto j : graph->incidenceMatrix[i])
-            if (int(graph->incidenceMatrix[j].size()) == 1)
-                model.add(z[i][j] + z[j][i] == 1);
-
-    // Each vertex with degree less or equal to 2 cannot be a branche
-    for (int i = 0; i < graph->n; i++)
-        if (int(graph->incidenceMatrix[i].size()) <= 2) model.add(y[i] == 0);
-
-    // Vertex with two or more bridges adjacent should be a branche and cut vertex with result in 3 or more CC
-    for (int i = 0; i < graph->n; i++)
-        if (graph->branches[i]) model.add(y[i] == 1);
-
-    // Cocycle restriction
-    for (auto p : graph->cocycle)
-        model.add(x[p.first.u][p.first.v] + x[p.second.u][p.second.v] >= 1);
-*/
 }
 
 void Model::outDegreeHybrid(int root) {
@@ -460,6 +458,14 @@ void Model::branchesCorrelationHybrid(int root){
                 constraint += z[root][u];
 
             model.add(2*y[root] <= constraint-1);
+        }
+    }
+}
+
+void Model::xAndZRelation() {
+    for (int i = 0; i < graph->n; i++) {
+        for (auto j : graph->incidenceMatrix[i]) {
+            model.add(x[i][j] == z[i][j] + z[j][i]);
         }
     }
 }

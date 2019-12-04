@@ -1,0 +1,3 @@
+/home/pedro/git/MO420-TP2/CMakeFiles/edit_cache.dir
+/home/pedro/git/MO420-TP2/CMakeFiles/rebuild_cache.dir
+/home/pedro/git/MO420-TP2/CMakeFiles/MO420_Branch_and_Cut.dir

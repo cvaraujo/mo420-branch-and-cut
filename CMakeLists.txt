@@ -1,7 +1,8 @@
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.5)
 project(MO420_Branch_and_Cut)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DIL_STD")
+set (CMAKE_CXX_STANDARD 11)
 
 include_directories("/opt/ibm/ILOG/CPLEX_Studio129/cplex/include")
 include_directories("/opt/ibm/ILOG/CPLEX_Studio129/concert/include")

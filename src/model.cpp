@@ -121,15 +121,10 @@ ILOLAZYCONSTRAINTCALLBACK2(SEC, IloArray<IloNumVarArray>, x, Graph, graph) {
         g.incidenceMatrix.resize(g.n);
         for (Edge e : graph.edges) {
             if (val_x[e.u][e.v] > EPS || val_x[e.v][e.u] > EPS) {
-<<<<<<< HEAD
                 g.incidenceMatrix[e.u].push_back(e.v);
                 g.incidenceMatrix[e.v].push_back(e.u);
                 g.edges.push_back(e);
-=======
-                g->incidenceMatrix[e.u].push_back(e.v),
-                g->incidenceMatrix[e.v].push_back(e.u);
-                g->edges.push_back(e);
->>>>>>> 28f943082e584501be2b2dc8735eba43f35dfd73
+
             }
         }
 
@@ -175,16 +170,8 @@ ILOLAZYCONSTRAINTCALLBACK2(SEC, IloArray<IloNumVarArray>, x, Graph, graph) {
                         cut += (0.5 * x[u][v]);
                     }
                 }
-<<<<<<< HEAD
                 add(cut <= (int(comps[i].size()) - 1));
             }
-=======
-//                cout << cut << " <= " << int(comps[i].size()) - 1 << endl;
-                add(cut <= (int(comps[i].size()) - 1));
-            }
-
-//        cout << "Fim" <<  endl;
->>>>>>> 28f943082e584501be2b2dc8735eba43f35dfd73
         }
     }
     catch (IloException &ex){

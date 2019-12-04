@@ -110,9 +110,9 @@ void Graph::twoCocycle() {
         }
     }
 
-    for (auto p : cocycle) {
-        cout << p.first.u + 1 << ", " << p.first.v + 1 << " -- " << p.second.u + 1 << ", " << p.second.v + 1 << endl;
-    }
+//    for (auto p : cocycle) {
+//        cout << p.first.u + 1 << ", " << p.first.v + 1 << " -- " << p.second.u + 1 << ", " << p.second.v + 1 << endl;
+//    }
 
 }
 
@@ -148,18 +148,38 @@ void Graph::bridge(Edge removed) {
             countAdj[edge.u]++, countAdj[edge.v]++;
         }
 
-        for (int i = 0; i < n; i++) {
-            if (countAdj[i] >= 2 && int(incidenceMatrix[i].size()) > 2) {
+        for (int i = 0; i < n; i++)
+            if (countAdj[i] >= 2 && int(incidenceMatrix[i].size()) > 2)
                 branches[i] = true;
-                numFixed++;
-            }
+        for (int i = 0; i < n; i++) {
+            if (ap[i] && connectedComponents(i) >= 3)
+                branches[i] = true;
         }
     } else
         for (auto edge : bridges) {
             if (!isBridge[edge.u][edge.v]) {
                 cocycle.push_back(make_pair(removed, edge));
                 isBridgeAndCocycle[edge.u][edge.v] = isBridgeAndCocycle[edge.v][edge.u] = true;
-//                cout << edge.u + 1 << " - " << edge.v + 1 << endl;
             }
         }
+}
+
+int Graph::connectedComponents(int removed) {
+    bool *visited = new bool[n];
+    for (int v = 0; v < n; v++) visited[v] = false;
+    int connected = 0;
+    for (int v = 0; v < n; v++) {
+        if (v != removed && !visited[v]) {
+            DFSUtil(v, removed, visited);
+            connected++;
+        }
+    }
+    return connected;
+}
+
+void Graph::DFSUtil(int v, int removed, _Bool *visited) {
+    visited[v] = true;
+    for (auto u : incidenceMatrix[v])
+        if (u != removed && !visited[u])
+            DFSUtil(u, removed, visited);
 }

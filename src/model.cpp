@@ -67,9 +67,15 @@ void Model::objectiveFunction() {
 void Model::edgesLimitConstraint() {
     IloExpr constraint(env);
 
-    for (auto i : graph->vertices)
+    for (int i = 0; i < graph->n; i++)
         for (auto j : graph->incidenceMatrix[i])
             constraint += x[i][j];
+
+    // Edges in a extreme vertex with degree one have to be one
+    for (int i = 0; i < graph->n; i++)
+        for (auto j : graph->incidenceMatrix[i])
+            if (int(graph->incidenceMatrix[j].size()) == 1)
+                model.add(x[i][j] == 1);
 
     model.add(constraint == (graph->n - 1));
 }
@@ -83,6 +89,18 @@ void Model::setBranchConstraint() {
         }
         model.add(constraint - 2 <= (int(graph->incidenceMatrix.size()) - 2) * y[i]);
     }
+
+    // Each vertex with degree less or equal to 2 cannot be a branche
+    for (int i = 0; i < graph->n; i++)
+        if (int(graph->incidenceMatrix[i].size()) <= 2) model.add(y[i] == 0);
+
+    // Vertex with two or more bridges adjacent should be a branche and cut vertex with result in 3 or more CC
+    for (int i = 0; i < graph->n; i++)
+        if (graph->branches[i]) model.add(y[i] == 1);
+
+    // Cocycle restriction
+    for (auto p : graph->cocycle)
+        model.add(x[p.first.u][p.first.v] + x[p.second.u][p.second.v] >= 1);
 }
 
 void Model::solve() {

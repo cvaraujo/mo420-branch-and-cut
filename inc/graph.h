@@ -54,6 +54,10 @@ public:
     void bridge(Edge removed);
 
     void twoCocycle();
+
+    int connectedComponents(int removed);
+
+    void DFSUtil(int v, int removed, bool visited[]);
 };
 
 #endif //MO420_BRANCH_AND_CUT_GRAPH_H

@@ -35,7 +35,7 @@ void Graph::load_graph(string path) {
 
 void Graph::print_graph() {
     for (auto e : edges) {
-        cout << e.u << " - " << e.v << " = " << e.weight << endl;
+        cout << e.u+1 << " - " << e.v+1 << endl;
     }
 }
 

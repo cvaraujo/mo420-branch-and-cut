@@ -27,6 +27,8 @@ class Model {
 
     void setBranchConstraint();
 
+    void branchConstraintAdpt();
+
 public:
     Model(Graph *graph);
 
@@ -36,13 +38,13 @@ public:
 
     void initModelHybrid();
 
-    void edgesLimitConstraintHybrid();
-
     void outDegreeHybrid(int root);
 
     void branchesHybrid(int root);
 
     void branchesCorrelationHybrid(int root);
+
+    void xAndZRelation();
 
     void initModel();
 

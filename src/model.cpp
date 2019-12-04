@@ -114,7 +114,7 @@ ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Graph, graph) {
 
         for (int i = 0; i <graph.n; i++){
             for (auto j : graph.incidenceMatrix[i]){
-                val_x[i][j] = val_x[j][i] = getValue(x[i][j]);
+                val_x[i][j] = getValue(x[i][j]);
             }
         }
 
@@ -189,7 +189,7 @@ ILOUSERCUTCALLBACK3(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, 
 
 	    for (int i = 0; i <graph.n; i++){
 	        for (auto j : graph.incidenceMatrix[i]){
-	            val_x[i][j] = val_x[j][i] = getValue(x[i][j]);
+	            val_x[i][j] = getValue(x[i][j]);
 	        }
 	    }
 
@@ -275,7 +275,79 @@ ILOUSERCUTCALLBACK3(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, 
         cout << ex.getMessage() << endl;
     }
 }
+/*
+ILOLAZYCONSTRAINTCALLBACK2(HLazy, IloArray<IloNumVarArray>, z, Graph, graph) {
+    try {
+        IloEnv env = getEnv();
 
+        vector <vector<IloNum >> val_z = vector<vector<IloNum>>(graph.n, vector<IloNum>(graph.n));
+
+        for (int i = 0; i <graph.n; i++){
+            for (auto j : graph.incidenceMatrix[i]){
+                val_z[i][j] = getValue(z[i][j]);
+            }
+        }
+
+        Graph g;
+        g.n = graph.n;
+        g.incidenceMatrix.resize(g.n);
+        for (Edge e : graph.edges) {
+            if (val_x[e.u][e.v] > EPS) {
+                g.incidenceMatrix[e.u].push_back(e.v);
+            }
+        }
+
+        vector <vector<int>> comps;
+        vector<int> nEdgesComponent;
+
+        vector<int> color;
+        color.resize(g.n, 0);
+
+        for (int i = 0; i < g.n; i++) {
+            if (color[i] != 0) continue;
+
+            comps.push_back(vector<int>());
+            nEdgesComponent.push_back(0);
+
+            color[i] = 1;
+            queue<int> q;
+            comps.back().push_back(i);
+            q.push(i);
+
+            while (!q.empty()) {
+                int u = q.front();
+                q.pop();
+                for (int v : g.incidenceMatrix[u]) {
+                    if (color[v] == 0) {
+                        color[v] = 1;
+                        q.push(v);
+                        comps.back().push_back(v);
+                    }
+                    nEdgesComponent.back()++;
+                }
+            }
+
+            /*Dividimos por 2, porque cada aresta foi contada 2 vezes
+            nEdgesComponent.back() = nEdgesComponent.back() >> 1;
+        }
+
+        for (int i = 0; i < comps.size(); i++) {
+            if (nEdgesComponent[i] >= comps[i].size()) {
+                IloExpr cut(env);
+                for (int u : comps[i]) {
+                    for (int v : g.incidenceMatrix[u]) {
+                        cut += (0.5 * x[u][v]);
+                    }
+                }
+                add(cut <= (int(comps[i].size()) - 1));
+            }
+        }
+    }
+    catch (IloException &ex){
+        cout << ex.getMessage() << endl;
+    }
+}
+*/
 void Model::solve() {
     /* Turn on traditional search for use with control callbacks */
 //    cplex.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);

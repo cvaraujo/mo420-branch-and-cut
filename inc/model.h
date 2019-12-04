@@ -13,8 +13,9 @@ class Model {
     IloEnv env;
     IloModel model;
     IloCplex cplex;
-    IloArray<IloNumVarArray> x;
+    IloArray<IloNumVarArray> x, z;
     IloNumVarArray y;
+
 
     int ncuts;
     float objval_relax1;
@@ -30,6 +31,18 @@ public:
     Model(Graph *graph);
 
     void initialize();
+
+    void initializeHybrid();
+
+    void initModelHybrid();
+
+    void edgesLimitConstraintHybrid();
+
+    void outDegreeHybrid(int root);
+
+    void branchesHybrid(int root);
+
+    void branchesCorrelationHybrid(int root);
 
     void initModel();
 

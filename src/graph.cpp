@@ -156,6 +156,9 @@ void Graph::bridge(Edge removed) {
             if (ap[i] && connectedComponents(i) >= 3)
                 branches[i] = true;
         }
+        for (int i = 0; i < n; i++){
+            if (ap[i] && removed.u == n) cutVertices.push_back(i);
+        }
     } else
         for (auto edge : bridges) {
             if (!isBridge[edge.u][edge.v]) {

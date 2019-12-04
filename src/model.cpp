@@ -106,7 +106,7 @@ void Model::setBranchConstraint() {
 
 }
 
-ILOLAZYCONSTRAINTCALLBACK2(SEC, IloArray<IloNumVarArray>, x, Graph, graph) {
+ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Graph, graph) {
     try {
         IloEnv env = getEnv();
 
@@ -181,7 +181,7 @@ ILOLAZYCONSTRAINTCALLBACK2(SEC, IloArray<IloNumVarArray>, x, Graph, graph) {
     }
 }
 
-ILOUSERCUTCALLBACK3(SubConjRam, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, graph){
+ILOUSERCUTCALLBACK3(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, graph){
     try {
         IloEnv env = getEnv();
 
@@ -196,6 +196,7 @@ ILOUSERCUTCALLBACK3(SubConjRam, IloArray<IloNumVarArray>, x, IloNumVarArray, y, 
 	    IloNumArray val_y(env);
 	    getValues(val_y, y);
 
+	    /*Resticao (18) [2]*/
 	    for (int i = 0; i < graph.n; i++){
 	    	if (graph.incidenceMatrix[i].size() < 3) continue;
 	    	vector<pair<float, int> > xe;
@@ -220,6 +221,55 @@ ILOUSERCUTCALLBACK3(SubConjRam, IloArray<IloNumVarArray>, x, IloNumVarArray, y, 
 	    		}
 	    	}
 	    }
+
+	    /*Restricao (19) [2]*/
+	    for (int i : graph.cutVertices){
+	    	int a = 0;
+	    	if (a == i) a = 1;
+
+	    	vector<int> color;
+	 		color.resize(graph.n, 0);
+
+	 		queue<int> q;
+	 		q.push(a);
+	 		color[a] = 1;
+
+	 		while (!q.empty()){
+	 			int u = q.front();
+	 			q.pop();
+
+	 			for (int v : graph.incidenceMatrix[u]){
+	 				if (color[v] != 0 || v == i) continue;
+	 				color[v] = 1;
+	 				q.push(v);
+	 			}
+	 		}
+
+	 		vector<int> A, B;
+	 		for (int j = 0; j < graph.n; j++){
+	 			if (j == i) continue;
+	 			if (color[j] == 1) A.push_back(j);
+	 			else B.push_back(j);
+	 		}
+
+	 		for (int j_ = 0; j_ < A.size(); j_++){
+	 			for (int k_ = j_ + 1; k_ < A.size(); k_++){
+	 				int j = A[j_], k = A[k_];
+	 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
+						add(x[i][j] + x[i][k] <= 1 + y[i]);
+	 				}
+	 			}
+	 		}
+
+	 		for (int j_ = 0; j_ < B.size(); j_++){
+	 			for (int k_ = j_ + 1; k_ < B.size(); k_++){
+	 				int j = B[j_], k = B[k_];
+	 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
+						add(x[i][j] + x[i][k] <= 1 + y[i]);
+	 				}
+	 			}
+	 		}
+	    }
     }
     catch (IloException &ex){
         cout << ex.getMessage() << endl;
@@ -233,10 +283,11 @@ void Model::solve() {
     /* Desabilita paralelismo  */
 //    cplex.setParam(IloCplex::Param::Threads, 1);
 
-//    cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
-//    this->cplex.use(SEC(env, x, *graph));
-//    this->cplex.use(SubConjRam(env, x, y, *graph));
-    this->cplex.exportModel("model_Hybrid.lp");
+
+    cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
+    this->cplex.use(Lazy(env, x, *graph));
+    this->cplex.use(Cut(env, x, y, *graph));
+    this->cplex.exportModel("model.lp");
     this->cplex.solve();
 }
 

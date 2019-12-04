@@ -39,6 +39,7 @@ public:
     vector<vector<bool>> isBridge;
     vector<vector<bool>> isBridgeAndCocycle;
     vector<bool> branches;
+    vector<int> cutVertices;
 
     Graph() {
     }

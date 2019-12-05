@@ -271,7 +271,7 @@ ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArra
 			 			for (int k_ = j_ + 1; k_ < graph.incidenceMatrix[i].size(); k_++){
 			 				int j = graph.incidenceMatrix[i][j_], k = graph.incidenceMatrix[i][k_];
 			 				if (A.find(j) == A.end() || A.find(k) == A.end()) continue;
-			 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
+			 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i] + EPS){
 								add(x[i][j] + x[i][k] <= 1 + y[i]);
 			 				}
 			 			}
@@ -281,7 +281,7 @@ ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArra
 			 			for (int k_ = j_ + 1; k_ < graph.incidenceMatrix[i].size(); k_++){
 			 				int j = graph.incidenceMatrix[i][j_], k = graph.incidenceMatrix[i][k_];
 			 				if (B.find(j) == B.end() || B.find(k) == B.end()) continue;
-			 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
+			 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i] + EPS){
 								add(x[i][j] + x[i][k] <= 1 + y[i]);
 			 				}
 			 			}

@@ -535,13 +535,27 @@
 #include "inc/model.h"
 
 int main(int argc, char *argv[]) {
+	if (argc != 3){
+		printf(".\\MO420_Branch_and_Cut abcd <entrada>\n");
+		printf("a = hybrid\n");
+		printf("b = sec\n");
+		printf("c = 18 [2]\n");
+		printf("d = 19 [2]\n");
+		exit(1);
+	}
     Graph *graph = new Graph();
-    graph->load_graph("toy.txt");
+    int hybrid = argv[1][0] - '0';
+    int sec = argv[1][1] - '0';
+    int r18 = argv[1][2] - '0';
+    int r19 = argv[1][3] - '0';
+    graph->load_graph(argv[2]);
     graph->twoCocycle();
 //    graph->print_graph();
     Model *model = new Model(graph);
-    model->initModelHybrid();
-    model->solve();
-    model->showSolutionHybrid();
+    if (hybrid) model->initModelHybrid();
+    else model->initModel();
+    model->solve(sec, r18, r19);
+    if (hybrid) model->showSolutionHybrid();
+    else model->showSolution();
     return 0;
 }

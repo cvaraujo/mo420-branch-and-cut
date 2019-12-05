@@ -88,7 +88,7 @@ void Model::setBranchConstraint() {
     for (int i = 0; i < graph->n; i++) {
         IloExpr constraint(env);
         for (auto j : graph->incidenceMatrix[i]) {
-            constraint += x[min(i, j)][max(i, j)];
+            constraint += x[i][j];
         }
         model.add((constraint - 2) <= (int(graph->incidenceMatrix[i].size()) - 2) * y[i]);
     }
@@ -110,7 +110,7 @@ void Model::branchConstraintAdpt() {
     for (int i = 0; i < graph->n; i++) {
         IloExpr constraint(env);
         for (auto j : graph->incidenceMatrix[i]) {
-            if (i < j) constraint += x[i][j];
+            constraint += x[i][j];
         }
         model.add(2*y[i] <= constraint - 1);
     }
@@ -192,7 +192,7 @@ ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Graph, graph) {
     }
 }
 
-ILOUSERCUTCALLBACK3(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, graph){
+ILOUSERCUTCALLBACK5(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, graph, int, r18, int, r19){
     try {
         IloEnv env = getEnv();
 
@@ -208,78 +208,82 @@ ILOUSERCUTCALLBACK3(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, 
 	    getValues(val_y, y);
 
 	    /*Resticao (18) [2]*/
-	    for (int i = 0; i < graph.n; i++){
-	    	if (graph.incidenceMatrix[i].size() < 3) continue;
-	    	vector<pair<float, int> > xe;
-	    	for (int j : graph.incidenceMatrix[i]){
-	    		xe.push_back(make_pair(val_x[i][j], j));
-	    	}
-	    	sort(xe.rbegin(), xe.rend());
+	    if (r18){
+		    for (int i = 0; i < graph.n; i++){
+		    	if (graph.incidenceMatrix[i].size() < 3) continue;
+		    	vector<pair<float, int> > xe;
+		    	for (int j : graph.incidenceMatrix[i]){
+		    		xe.push_back(make_pair(val_x[i][j], j));
+		    	}
+		    	sort(xe.rbegin(), xe.rend());
 
-	    	for (int k = 3; k < (int)graph.incidenceMatrix[i].size(); k++){
-	    		float lhs = 2 - k;
-	    		for (int j = 0; j < k; j++){
-	    			lhs += xe[j].first;
-	    		}
-
-	    		if (lhs > 2 - EPS){
-	                IloExpr cut(env);
-	                cut += 2 - k;
+		    	for (int k = 3; k < (int)graph.incidenceMatrix[i].size(); k++){
+		    		float lhs = 2 - k;
 		    		for (int j = 0; j < k; j++){
-		    			cut += x[i][xe[j].second];
+		    			lhs += xe[j].first;
 		    		}
-		    		add(cut <= 2);
-	    		}
-	    	}
+
+		    		if (lhs > 2 - EPS){
+		                IloExpr cut(env);
+		                cut += 2 - k;
+			    		for (int j = 0; j < k; j++){
+			    			cut += x[i][xe[j].second];
+			    		}
+			    		add(cut <= 2);
+		    		}
+		    	}
+		    }
 	    }
 
 	    /*Restricao (19) [2]*/
-	    for (int i : graph.cutVertices){
-	    	int a = 0;
-	    	if (a == i) a = 1;
+	    if (r19){
+		    for (int i : graph.cutVertices){
+		    	int a = 0;
+		    	if (a == i) a = 1;
 
-	    	vector<int> color;
-	 		color.resize(graph.n, 0);
+		    	vector<int> color;
+		 		color.resize(graph.n, 0);
 
-	 		queue<int> q;
-	 		q.push(a);
-	 		color[a] = 1;
+		 		queue<int> q;
+		 		q.push(a);
+		 		color[a] = 1;
 
-	 		while (!q.empty()){
-	 			int u = q.front();
-	 			q.pop();
+		 		while (!q.empty()){
+		 			int u = q.front();
+		 			q.pop();
 
-	 			for (int v : graph.incidenceMatrix[u]){
-	 				if (color[v] != 0 || v == i) continue;
-	 				color[v] = 1;
-	 				q.push(v);
-	 			}
-	 		}
+		 			for (int v : graph.incidenceMatrix[u]){
+		 				if (color[v] != 0 || v == i) continue;
+		 				color[v] = 1;
+		 				q.push(v);
+		 			}
+		 		}
 
-	 		vector<int> A, B;
-	 		for (int j = 0; j < graph.n; j++){
-	 			if (j == i) continue;
-	 			if (color[j] == 1) A.push_back(j);
-	 			else B.push_back(j);
-	 		}
+		 		vector<int> A, B;
+		 		for (int j = 0; j < graph.n; j++){
+		 			if (j == i) continue;
+		 			if (color[j] == 1) A.push_back(j);
+		 			else B.push_back(j);
+		 		}
 
-	 		for (int j_ = 0; j_ < A.size(); j_++){
-	 			for (int k_ = j_ + 1; k_ < A.size(); k_++){
-	 				int j = A[j_], k = A[k_];
-	 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
-						add(x[i][j] + x[i][k] <= 1 + y[i]);
-	 				}
-	 			}
-	 		}
+		 		for (int j_ = 0; j_ < A.size(); j_++){
+		 			for (int k_ = j_ + 1; k_ < A.size(); k_++){
+		 				int j = A[j_], k = A[k_];
+		 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
+							add(x[i][j] + x[i][k] <= 1 + y[i]);
+		 				}
+		 			}
+		 		}
 
-	 		for (int j_ = 0; j_ < B.size(); j_++){
-	 			for (int k_ = j_ + 1; k_ < B.size(); k_++){
-	 				int j = B[j_], k = B[k_];
-	 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
-						add(x[i][j] + x[i][k] <= 1 + y[i]);
-	 				}
-	 			}
-	 		}
+		 		for (int j_ = 0; j_ < B.size(); j_++){
+		 			for (int k_ = j_ + 1; k_ < B.size(); k_++){
+		 				int j = B[j_], k = B[k_];
+		 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
+							add(x[i][j] + x[i][k] <= 1 + y[i]);
+		 				}
+		 			}
+		 		}
+		    }
 	    }
     }
     catch (IloException &ex){
@@ -359,7 +363,7 @@ ILOLAZYCONSTRAINTCALLBACK2(HLazy, IloArray<IloNumVarArray>, z, Graph, graph) {
     }
 }
 */
-void Model::solve() {
+void Model::solve(int sec, int r18, int r19) {
     /* Turn on traditional search for use with control callbacks */
 //    cplex.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);
 
@@ -368,8 +372,8 @@ void Model::solve() {
 
 
     cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
-    this->cplex.use(Lazy(env, x, *graph));
-    this->cplex.use(Cut(env, x, y, *graph));
+    if (sec) this->cplex.use(Lazy(env, x, *graph));
+    this->cplex.use(Cut(env, x, y, *graph, r18, r19));
     this->cplex.exportModel("model.lp");
     this->cplex.solve();
 }
@@ -447,7 +451,7 @@ void Model::initializeHybrid() {
             for (auto j : graph->incidenceMatrix[i]) {
                 if (i < j) {
                     sprintf(name, "x_%d_%d", i, j);
-                    x[i][j] = IloNumVar(env, 0, 1, name);
+                    x[i][j] = x[j][i] = IloNumVar(env, 0, 1, name);
                     model.add(x[i][j]);
                     model.add(IloConversion(env, x[i][j], ILOBOOL));
                 }

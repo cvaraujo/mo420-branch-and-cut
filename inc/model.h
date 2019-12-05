@@ -9,17 +9,10 @@
 #include "graph.h"
 
 class Model {
-    Graph *graph;
     IloEnv env;
     IloModel model;
-    IloCplex cplex;
     IloArray<IloNumVarArray> x, z;
     IloNumVarArray y;
-
-
-    int ncuts;
-    float objval_relax1;
-    float objval_node1;
 
     void objectiveFunction();
 
@@ -30,6 +23,16 @@ class Model {
     void branchConstraintAdpt();
 
 public:
+    Graph *graph;
+    int qtd_sec;
+    int qtd_18;
+    int qtd_19;
+    int qtd_34;
+    IloCplex cplex;
+
+    float relax1;
+    float obj1;
+
     Model(Graph *graph);
 
     void initialize();
@@ -48,14 +51,12 @@ public:
 
     void initModel();
 
-    void solve(int r18, int r19, int r34);
+    void solve(int r18, int r19, int r34, int heuristic);
 
     void showSolution();
 
     void showSolutionHybrid();
 
-
-//    ILOUSERCUTCALLBACK(Cortes, IloArray<IloNumVarArray>, x, IloNumVarArray, y);
 };
 
 #endif //MO420_BRANCH_AND_CUT_MODEL_H

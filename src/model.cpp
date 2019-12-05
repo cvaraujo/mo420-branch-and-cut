@@ -5,6 +5,12 @@
 #include "../inc/model.h"
 
 Model::Model(Graph *graph) {
+	this->qtd_sec = 0;
+    this->qtd_18 = 0;
+    this->qtd_19 = 0;
+    this->qtd_34 = 0;
+    float relax1 = 0;
+    float obj1 = -1;
     if (graph != nullptr) {
         this->graph = graph;
 
@@ -50,7 +56,7 @@ void Model::initialize() {
 
 void Model::initModel() {
     cout << "Begin the model creation" << endl;
-    cplex.setParam(IloCplex::Param::TimeLimit, 100);
+    cplex.setParam(IloCplex::Param::TimeLimit, 1200);
     cplex.setParam(IloCplex::TreLim, 7000);
 //    cplex.setOut(env.getNullStream());
 
@@ -117,9 +123,11 @@ void Model::branchConstraintAdpt() {
 }
 
 
-ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Graph, graph) {
+ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Model &, model) {
     try {
         IloEnv env = getEnv();
+
+        Graph graph = *(model.graph);
 
         vector <vector<IloNum >> val_x = vector<vector<IloNum>>(graph.n, vector<IloNum>(graph.n));
 
@@ -183,6 +191,7 @@ ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Graph, graph) {
                         cut += (0.5 * x[u][v]);
                     }
                 }
+                model.qtd_sec++;
                 add(cut <= (int(comps[i].size()) - 1));
             }
         }
@@ -192,9 +201,18 @@ ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Graph, graph) {
     }
 }
 
-ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArray<IloNumVarArray>, z, Graph, graph, int, r18, int, r19, int, r34){
+ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArray<IloNumVarArray>, z, Model &, model, int, r18, int, r19, int, r34){
     try {
         IloEnv env = getEnv();
+
+       	static bool first_node = true;
+
+       	if (first_node && isAfterCutLoop()){
+       		first_node = false;
+       		model.relax1 = getBestObjValue();
+       	}
+
+        Graph graph = *(model.graph);
 
 		vector <vector<IloNum >> val_x = vector<vector<IloNum>>(graph.n, vector<IloNum>(graph.n));
 
@@ -229,6 +247,7 @@ ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArra
 			    		for (int j = 0; j < k; j++){
 			    			cut += x[i][xe[j].second];
 			    		}
+			    		model.qtd_18++;
 			    		add(cut <= 2);
 		    		}
 		    	}
@@ -272,6 +291,7 @@ ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArra
 			 				int j = graph.incidenceMatrix[i][j_], k = graph.incidenceMatrix[i][k_];
 			 				if (A.find(j) == A.end() || A.find(k) == A.end()) continue;
 			 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i] + EPS){
+			 					model.qtd_19++;
 								add(x[i][j] + x[i][k] <= 1 + y[i]);
 			 				}
 			 			}
@@ -282,6 +302,7 @@ ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArra
 			 				int j = graph.incidenceMatrix[i][j_], k = graph.incidenceMatrix[i][k_];
 			 				if (B.find(j) == B.end() || B.find(k) == B.end()) continue;
 			 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i] + EPS){
+			 					model.qtd_19++;
 								add(x[i][j] + x[i][k] <= 1 + y[i]);
 			 				}
 			 			}
@@ -321,6 +342,7 @@ ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArra
 			    		for (int j = 0; j < k; j++){
 			    			cut += z[i][za[j].second];
 			    		}
+			    		model.qtd_34++;
 			    		add(cut <= 1);
 		    		}
 		    	}
@@ -332,7 +354,106 @@ ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArra
     }
 }
 
-void Model::solve(int r18, int r19, int r34) {
+int find_rep(int father[], int i){
+	if (i == father[i]) return i;
+	return father[i] = find_rep(father, father[i]);
+}
+
+void union_set(int father[], int u, int v){
+	int i = find_rep(father, u), j = find_rep(father, v);
+	father[i] = j;
+}
+
+bool comp(pair<float, Edge> a, pair<float, Edge> b){
+	return a.first < b.first;
+}
+
+ILOHEURISTICCALLBACK3(Heuristica, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Model &, model){
+    try {
+        IloEnv env = getEnv();
+
+        Graph graph = *(model.graph);
+
+		vector <vector<IloNum >> val_x = vector<vector<IloNum>>(graph.n, vector<IloNum>(graph.n));
+
+	    for (int i = 0; i <graph.n; i++){
+	        for (auto j : graph.incidenceMatrix[i]){
+	            val_x[i][j] = getValue(x[i][j]);
+	        }
+	    }
+
+//	    vector<vector<int>> w = vector<vector<int>>(graph.n, vector<int>(graph.n));
+
+	    vector<pair<float, Edge>> edges;
+	    for (int i = 0; i < graph.n; i++){
+	    	for (int j = 0; j < graph.n; j++){
+	    		if (i < j) edges.push_back(make_pair(1 - val_x[i][j], Edge(i,j)));
+	    	}
+	    }
+
+	    sort(edges.begin(), edges.end(), comp);
+
+	    int father[graph.n];
+	    for (int i = 0; i < graph.n; i++){
+	    	father[i] = i;
+	    }
+
+	    vector<vector<int>> rx = vector<vector<int>>(graph.n, vector<int>(graph.n, 0));
+
+	    int cont = 0;
+	    int j = 0;
+	    while (j < edges.size() && cont < graph.n - 1){
+	    	Edge e = edges[j++].second;
+	    	if (find_rep(father, e.u) == find_rep(father, e.v)) continue;
+	    	rx[e.u][e.v] = rx[e.v][e.u] = 1;
+	    	union_set(father, e.u, e.v);
+	    	cont++;
+	    }
+
+	    vector<int> ry = vector<int>(graph.n, 0);
+
+	    IloNumVarArray r(env);
+	    IloNumArray r_(env);
+
+	    for (int i = 0; i < graph.n; i++){
+	    	for (int j : graph.incidenceMatrix[i]){
+	    		if (i < j){
+	    			r.add(x[i][j]);
+	    			r_.add(rx[i][j]);
+	    			ry[i]++;
+	    			ry[j]++;
+	    		}
+	    	}
+	    }
+
+	    int cost = 0;
+	    for (int i = 0; i < graph.n; i++){
+	    	r.add(y[i]);
+	    	if (ry[i] > 2){
+	    		cost++;
+	    		r_.add(1);
+	    	}
+	    	else{
+	    		r_.add(0);
+	    	}
+	    }
+
+	    static bool first_node = true;
+
+       	if (first_node){
+       		first_node = false;
+       		model.obj1 = cost;
+       	}
+
+		setSolution(r, r_, cost);
+
+    }
+    catch (IloException &ex){
+        cout << ex.getMessage() << endl;
+    }
+}
+
+void Model::solve(int r18, int r19, int r34, int heuristic) {
     /* Turn on traditional search for use with control callbacks */
 //    cplex.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);
 
@@ -341,8 +462,9 @@ void Model::solve(int r18, int r19, int r34) {
 
 
     cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
-    this->cplex.use(Lazy(env, x, *graph));
-    this->cplex.use(Cut(env, x, y, z, *graph, r18, r19, r34));
+    this->cplex.use(Lazy(env, x, *this));
+    this->cplex.use(Cut(env, x, y, z, *this, r18, r19, r34));
+    if (heuristic) this->cplex.use(Heuristica(env, x, y, *this));
     this->cplex.exportModel("model.lp");
     this->cplex.solve();
 }
@@ -439,7 +561,7 @@ void Model::initializeHybrid() {
 
 void Model::initModelHybrid() {
     cout << "Begin the model creation" << endl;
-    cplex.setParam(IloCplex::Param::TimeLimit, 600);
+    cplex.setParam(IloCplex::Param::TimeLimit, 1200);
     cplex.setParam(IloCplex::TreLim, 7000);
 //    cplex.setOut(env.getNullStream());
 

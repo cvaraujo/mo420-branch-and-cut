@@ -13,18 +13,12 @@ class Edge {
 public:
     int u;
     int v;
-    double weight = 0;
 
     Edge() {}
 
-    Edge(int u, int v, double weight) {
+    Edge(int u, int v) {
         this->u = u;
         this->v = v;
-        this->weight = weight;
-    }
-
-    bool operator<(const Edge &Edge) const {
-        return (this->weight < Edge.weight);
     }
 };
 
@@ -47,8 +41,6 @@ public:
     void load_graph(string path);
 
     void print_graph();
-
-    void set_edge_value(int u, int v, double weight);
 
     void bridgeUtil(int u, bool visited[], int disc[], int low[], int parent[], bool ap[], Edge removed);
 

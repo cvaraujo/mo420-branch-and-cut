@@ -39,17 +39,6 @@ void Graph::print_graph() {
     }
 }
 
-void Graph::set_edge_value(int u, int v, double weight) {
-    Edge e;
-    for (int i = 0; i < m; i++) {
-        e = edges[i];
-        if (e.u == u && e.v == v) {
-            edges[i].weight = weight;
-            break;
-        }
-    }
-}
-
 void Graph::bridgeUtil(int u, bool visited[], int disc[], int low[], int parent[], bool ap[], Edge removed) {
     static int time = 0;
 

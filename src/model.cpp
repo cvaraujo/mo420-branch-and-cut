@@ -124,6 +124,7 @@ void Model::branchConstraintAdpt() {
 
 
 ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Model &, model) {
+	printf("aaa\n");
     try {
         IloEnv env = getEnv();
 
@@ -202,6 +203,7 @@ ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Model &, model) {
 }
 
 ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArray<IloNumVarArray>, z, Model &, model, int, r18, int, r19, int, r34){
+	printf("bbb\n");
     try {
         IloEnv env = getEnv();
 
@@ -369,6 +371,7 @@ bool comp(pair<float, Edge> a, pair<float, Edge> b){
 }
 
 ILOHEURISTICCALLBACK3(Heuristica, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Model &, model){
+	printf("ccc\n");
     try {
         IloEnv env = getEnv();
 

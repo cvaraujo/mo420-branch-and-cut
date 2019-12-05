@@ -192,7 +192,7 @@ ILOLAZYCONSTRAINTCALLBACK2(Lazy, IloArray<IloNumVarArray>, x, Graph, graph) {
     }
 }
 
-ILOUSERCUTCALLBACK5(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, graph, int, r18, int, r19){
+ILOUSERCUTCALLBACK7(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, IloArray<IloNumVarArray>, z, Graph, graph, int, r18, int, r19, int, r34){
     try {
         IloEnv env = getEnv();
 
@@ -218,14 +218,14 @@ ILOUSERCUTCALLBACK5(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, 
 		    	sort(xe.rbegin(), xe.rend());
 
 		    	for (int k = 3; k < (int)graph.incidenceMatrix[i].size(); k++){
-		    		float lhs = 2 - k;
+		    		float lhs = (2 - k) * val_y[i];
 		    		for (int j = 0; j < k; j++){
 		    			lhs += xe[j].first;
 		    		}
 
-		    		if (lhs > 2 - EPS){
+		    		if (lhs > 2 + EPS){
 		                IloExpr cut(env);
-		                cut += 2 - k;
+		                cut += (2 - k) * y[i];
 			    		for (int j = 0; j < k; j++){
 			    			cut += x[i][xe[j].second];
 			    		}
@@ -259,30 +259,71 @@ ILOUSERCUTCALLBACK5(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, 
 		 			}
 		 		}
 
-		 		vector<int> A, B;
+		 		set<int> A, B;
 		 		for (int j = 0; j < graph.n; j++){
 		 			if (j == i) continue;
-		 			if (color[j] == 1) A.push_back(j);
-		 			else B.push_back(j);
+		 			if (color[j] == 1) A.insert(j);
+		 			else B.insert(j);
 		 		}
 
-		 		for (int j_ = 0; j_ < A.size(); j_++){
-		 			for (int k_ = j_ + 1; k_ < A.size(); k_++){
-		 				int j = A[j_], k = A[k_];
-		 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
-							add(x[i][j] + x[i][k] <= 1 + y[i]);
-		 				}
-		 			}
-		 		}
+		 		if (A.size() >= 2 && B.size() >= 2){
+			 		for (int j_ = 0; j_ < graph.incidenceMatrix[i].size(); j_++){
+			 			for (int k_ = j_ + 1; k_ < graph.incidenceMatrix[i].size(); k_++){
+			 				int j = graph.incidenceMatrix[i][j_], k = graph.incidenceMatrix[i][k_];
+			 				if (A.find(j) == A.end() || A.find(k) == A.end()) continue;
+			 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
+								add(x[i][j] + x[i][k] <= 1 + y[i]);
+			 				}
+			 			}
+			 		}
 
-		 		for (int j_ = 0; j_ < B.size(); j_++){
-		 			for (int k_ = j_ + 1; k_ < B.size(); k_++){
-		 				int j = B[j_], k = B[k_];
-		 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
-							add(x[i][j] + x[i][k] <= 1 + y[i]);
-		 				}
-		 			}
+			 		for (int j_ = 0; j_ < graph.incidenceMatrix[i].size(); j_++){
+			 			for (int k_ = j_ + 1; k_ < graph.incidenceMatrix[i].size(); k_++){
+			 				int j = graph.incidenceMatrix[i][j_], k = graph.incidenceMatrix[i][k_];
+			 				if (B.find(j) == B.end() || B.find(k) == B.end()) continue;
+			 				if (val_x[i][j] + val_x[i][k] > 1 + val_y[i]){
+								add(x[i][j] + x[i][k] <= 1 + y[i]);
+			 				}
+			 			}
+			 		}
 		 		}
+		    }
+	    }
+
+	    /*Restricao 34*/
+	    if (r34){
+
+			vector <vector<IloNum >> val_z = vector<vector<IloNum>>(graph.n, vector<IloNum>(graph.n));
+
+		    for (int i = 0; i <graph.n; i++){
+		        for (auto j : graph.incidenceMatrix[i]){
+		            val_z[i][j] = getValue(z[i][j]);
+		        }
+		    }
+
+		    for (int i = 0; i < graph.n; i++){
+		    	if (graph.incidenceMatrix[i].size() < 3) continue;
+		    	vector<pair<float, int> > za;
+		    	for (int j : graph.incidenceMatrix[i]){
+		    		za.push_back(make_pair(val_z[i][j], j));
+		    	}
+		    	sort(za.rbegin(), za.rend());
+
+		    	for (int k = 2; k < (int)graph.incidenceMatrix[i].size(); k++){
+		    		float lhs = (1 - k) * val_y[i];
+		    		for (int j = 0; j < k; j++){
+		    			lhs += za[j].first;
+		    		}
+
+		    		if (lhs > 1 + EPS){
+		                IloExpr cut(env);
+		                cut += (1 - k) * y[i];
+			    		for (int j = 0; j < k; j++){
+			    			cut += z[i][za[j].second];
+			    		}
+			    		add(cut <= 1);
+		    		}
+		    	}
 		    }
 	    }
     }
@@ -290,80 +331,8 @@ ILOUSERCUTCALLBACK5(Cut, IloArray<IloNumVarArray>, x, IloNumVarArray, y, Graph, 
         cout << ex.getMessage() << endl;
     }
 }
-/*
-ILOLAZYCONSTRAINTCALLBACK2(HLazy, IloArray<IloNumVarArray>, z, Graph, graph) {
-    try {
-        IloEnv env = getEnv();
 
-        vector <vector<IloNum >> val_z = vector<vector<IloNum>>(graph.n, vector<IloNum>(graph.n));
-
-        for (int i = 0; i <graph.n; i++){
-            for (auto j : graph.incidenceMatrix[i]){
-                val_z[i][j] = getValue(z[i][j]);
-            }
-        }
-
-        Graph g;
-        g.n = graph.n;
-        g.incidenceMatrix.resize(g.n);
-        for (Edge e : graph.edges) {
-            if (val_x[e.u][e.v] > EPS) {
-                g.incidenceMatrix[e.u].push_back(e.v);
-            }
-        }
-
-        vector <vector<int>> comps;
-        vector<int> nEdgesComponent;
-
-        vector<int> color;
-        color.resize(g.n, 0);
-
-        for (int i = 0; i < g.n; i++) {
-            if (color[i] != 0) continue;
-
-            comps.push_back(vector<int>());
-            nEdgesComponent.push_back(0);
-
-            color[i] = 1;
-            queue<int> q;
-            comps.back().push_back(i);
-            q.push(i);
-
-            while (!q.empty()) {
-                int u = q.front();
-                q.pop();
-                for (int v : g.incidenceMatrix[u]) {
-                    if (color[v] == 0) {
-                        color[v] = 1;
-                        q.push(v);
-                        comps.back().push_back(v);
-                    }
-                    nEdgesComponent.back()++;
-                }
-            }
-
-            /*Dividimos por 2, porque cada aresta foi contada 2 vezes
-            nEdgesComponent.back() = nEdgesComponent.back() >> 1;
-        }
-
-        for (int i = 0; i < comps.size(); i++) {
-            if (nEdgesComponent[i] >= comps[i].size()) {
-                IloExpr cut(env);
-                for (int u : comps[i]) {
-                    for (int v : g.incidenceMatrix[u]) {
-                        cut += (0.5 * x[u][v]);
-                    }
-                }
-                add(cut <= (int(comps[i].size()) - 1));
-            }
-        }
-    }
-    catch (IloException &ex){
-        cout << ex.getMessage() << endl;
-    }
-}
-*/
-void Model::solve(int sec, int r18, int r19) {
+void Model::solve(int r18, int r19, int r34) {
     /* Turn on traditional search for use with control callbacks */
 //    cplex.setParam(IloCplex::Param::MIP::Strategy::Search, CPX_MIPSEARCH_TRADITIONAL);
 
@@ -372,8 +341,8 @@ void Model::solve(int sec, int r18, int r19) {
 
 
     cplex.setParam(IloCplex::Param::Preprocessing::Presolve, CPX_OFF);
-    if (sec) this->cplex.use(Lazy(env, x, *graph));
-    this->cplex.use(Cut(env, x, y, *graph, r18, r19));
+    this->cplex.use(Lazy(env, x, *graph));
+    this->cplex.use(Cut(env, x, y, z, *graph, r18, r19, r34));
     this->cplex.exportModel("model.lp");
     this->cplex.solve();
 }

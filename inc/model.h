@@ -48,7 +48,7 @@ public:
 
     void initModel();
 
-    void solve(int sec, int r18, int r19);
+    void solve(int r18, int r19, int r34);
 
     void showSolution();
 
